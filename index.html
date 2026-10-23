@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+</head>
+<body>
+<title>Мөнхбаатарын сагс</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Russo+One&family=Rubik:wght@400;500;700&family=Orbitron:wght@600;800&display=swap">
+<style>
+/* Layout: дээр нь цэнгэлдэх хүрээлэнгийн онооны самбар, доор нь 4 таб — дасгалжуулагч, тоглолт, торгуулийн шидэлт, миний хүснэгт; нэг баганатай */
+:root {
+  --bg: #edf0f5; --panel: #ffffff; --ink: #131a2c; --muted: #59627a; --line: #d5dae5;
+  --ball: #e4570f; --ball-ink: #ffffff; --ball-soft: #fde3d3;
+  --court: #1f3f94; --court-soft: #e1e8fa;
+  --good: #147a4b; --good-soft: #d8f1e4; --bad: #c22f2f; --bad-soft: #fae0e0;
+  --board: #0d111c; --board-line: #262e44; --board-text: #c4cbdb; --led: #ffb21e; --led-dim: #4a3a14;
+  --display: 'Russo One', 'Arial Black', sans-serif;
+  --body: 'Rubik', 'Segoe UI', -apple-system, sans-serif;
+  --digits: 'Orbitron', 'Russo One', ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0a0d15; --panel: #131826; --ink: #edf0f7; --muted: #9aa3ba; --line: #262d42;
+  --ball: #ff7631; --ball-ink: #1a0a00; --ball-soft: #3a2214;
+  --court: #8eaaff; --court-soft: #1a2440;
+  --good: #43c487; --good-soft: #10301f; --bad: #ff7b7b; --bad-soft: #3a1818;
+  --board: #04060b; --board-line: #1f2638; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0a0d15; --panel: #131826; --ink: #edf0f7; --muted: #9aa3ba; --line: #262d42;
+  --ball: #ff7631; --ball-ink: #1a0a00; --ball-soft: #3a2214;
+  --court: #8eaaff; --court-soft: #1a2440;
+  --good: #43c487; --good-soft: #10301f; --bad: #ff7b7b; --bad-soft: #3a1818;
+  --board: #04060b; --board-line: #1f2638; color-scheme: dark }
+
+* { box-sizing: border-box }
+[hidden] { display: none !important }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 16px 48px }
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; letter-spacing: 0.01em }
+h2 { font-size: clamp(21px, 4.5vw, 26px) }
+h3 { font-size: 18px }
+p { margin: 0 }
+button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent }
+button:focus-visible { outline: 3px solid var(--ball); outline-offset: 2px }
+.muted { color: var(--muted) }
+.lbl { font-family: var(--body); font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase }
+.led { font-family: var(--digits); font-weight: 800; color: var(--led); text-shadow: 0 0 10px rgba(255, 178, 30, 0.45); font-variant-numeric: tabular-nums; line-height: 1 }
+
+/* Онооны самбар */
+.board { background: var(--board); color: var(--board-text); border-radius: 20px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; border: 2px solid var(--board-line) }
+.board-top { display: flex; align-items: center; justify-content: space-between; gap: 12px }
+.team { display: flex; align-items: center; gap: 12px; min-width: 0 }
+.team svg { width: 46px; height: 46px; flex-shrink: 0 }
+.team h1 { font-size: clamp(20px, 5vw, 28px); color: #ffffff; line-height: 1.1 }
+.team .lbl { color: var(--led) }
+.sound { background: transparent; border: 2px solid var(--board-line); color: var(--board-text); border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 700; flex-shrink: 0 }
+.cells { display: grid; grid-template-columns: 1fr 1fr 1.6fr; gap: 8px }
+.cell { background: #000000; border: 1px solid var(--board-line); border-radius: 12px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; min-width: 0; overflow: hidden }
+.cell .lbl { letter-spacing: 0.05em }
+.cell .led { font-size: clamp(24px, 6vw, 32px) }
+.cell small { font-family: var(--digits); color: var(--led-dim); font-size: 14px }
+.cell .rank { font-family: var(--display); color: #ffffff; font-size: clamp(15px, 3.6vw, 19px); line-height: 1.15 }
+
+/* Табууд */
+.tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; background: var(--panel); border: 2px solid var(--line); border-radius: 16px; padding: 5px }
+.tab { border: none; background: transparent; border-radius: 11px; padding: 9px 4px; font-weight: 700; font-size: 14px; line-height: 1.2; color: var(--muted) }
+.tab[aria-pressed="true"] { background: var(--ball); color: var(--ball-ink) }
+@media (max-width: 430px) { .tab { font-size: 12.5px } }
+
+.panel { background: var(--panel); border: 2px solid var(--line); border-radius: 22px; padding: clamp(16px, 4vw, 26px); display: flex; flex-direction: column; gap: 18px; min-width: 0 }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.big { background: var(--ball); color: var(--ball-ink); border: none; border-radius: 14px; padding: 14px 24px; font-family: var(--display); font-size: 18px; letter-spacing: 0.02em }
+.ghost { background: transparent; border: 2px solid var(--line); border-radius: 12px; padding: 10px 16px; font-weight: 700 }
+.ghost.danger { color: var(--bad); border-color: var(--bad) }
+.sec { display: flex; flex-direction: column; gap: 12px }
+.sec + .sec { border-top: 2px dashed var(--line); padding-top: 20px }
+
+/* 100 → 15 */
+.shrink { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 210px); gap: 16px; align-items: start }
+@media (max-width: 560px) { .shrink { grid-template-columns: minmax(0, 1fr) } }
+.mini { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 3px }
+.mini i { aspect-ratio: 1; max-width: 100%; border-radius: 4px; background: var(--ball); display: grid; place-items: center; font-style: normal; font-size: clamp(9px, 2.2vw, 12px); font-weight: 700; color: var(--ball-ink); transition: background .35s, color .35s, transform .35s; font-variant-numeric: tabular-nums }
+.mini i.gone { background: var(--bg); color: var(--line); transform: scale(.86) }
+.counter { background: var(--board); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px; color: var(--board-text) }
+.counter .led { font-size: 48px }
+.counter b.step { color: #ffffff; font-family: var(--display); font-weight: 400; font-size: 17px }
+.counter p { font-size: 14px }
+
+/* 9-ийн хуруу */
+.hands { display: flex; justify-content: center; gap: clamp(10px, 4vw, 26px); padding: 6px 0 }
+.hand { display: flex; align-items: flex-end; gap: clamp(3px, 1.2vw, 7px); height: 110px }
+.finger { width: clamp(22px, 6.4vw, 34px); height: 96px; border-radius: 14px 14px 8px 8px; border: 2px solid var(--line); background: var(--court-soft); display: flex; align-items: flex-start; justify-content: center; padding-top: 6px; font-size: 12px; font-weight: 700; color: var(--muted); transition: height .2s, background .2s }
+.hand .finger:nth-child(1), .hand.r .finger:nth-child(5) { height: 66px }
+.hand .finger:nth-child(2), .hand.r .finger:nth-child(4) { height: 88px }
+.hand .finger:nth-child(3) { height: 100px }
+.hand .finger:nth-child(4), .hand.r .finger:nth-child(2) { height: 92px }
+.hand .finger:nth-child(5), .hand.r .finger:nth-child(1) { height: 76px }
+.hand.r .finger:nth-child(3) { height: 100px }
+.finger.down { height: 34px !important; background: var(--ball); color: var(--ball-ink); border-color: var(--ball) }
+.nine { text-align: center; font-size: 18px; min-height: 54px }
+.nine b { font-family: var(--digits); font-size: 26px; color: var(--ball) }
+
+/* Дүрмийн картууд */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px }
+.rule { border: 2px solid var(--line); border-radius: 16px; padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; min-width: 0 }
+.rule .tag { align-self: flex-start; font-family: var(--digits); font-weight: 800; font-size: 13px; background: var(--court-soft); color: var(--court); border-radius: 8px; padding: 2px 8px }
+.rule b { font-size: 16px }
+.rule code { font-family: var(--digits); font-size: 14px; color: var(--ball); font-weight: 600 }
+
+/* Тоглолтын дэлгэц */
+.hud { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; background: var(--board); border-radius: 16px; padding: 10px; color: var(--board-text) }
+.hud > div { display: flex; flex-direction: column; align-items: center; gap: 4px }
+.hud .led { font-size: clamp(26px, 7vw, 36px) }
+.hud .led.low { color: #ff5a4a; text-shadow: 0 0 10px rgba(255, 90, 74, .5) }
+.shot { display: flex; flex-direction: column; align-items: center; gap: 10px }
+.q { font-family: var(--digits); font-weight: 800; font-size: clamp(44px, 13vw, 64px); line-height: 1.1; font-variant-numeric: tabular-nums }
+.q .x { color: var(--ball) }
+.ans { min-width: 150px; min-height: 66px; border: 3px solid var(--line); border-radius: 16px; display: grid; place-items: center; font-family: var(--digits); font-weight: 800; font-size: 38px; padding: 4px 18px; font-variant-numeric: tabular-nums }
+.ans.ok { border-color: var(--good); background: var(--good-soft); color: var(--good) }
+.ans.no { border-color: var(--bad); background: var(--bad-soft); color: var(--bad) }
+.ans .ph { font-family: var(--body); font-size: 15px; font-weight: 500; color: var(--muted) }
+.zone { width: min(260px, 100%); display: flex; flex-direction: column; gap: 3px; align-items: center }
+.zone .bar { width: 100%; height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden }
+.zone .bar i { display: block; height: 100%; width: 100%; background: var(--ball); border-radius: 999px }
+.zone span { font-size: 12px; color: var(--muted); font-weight: 700 }
+.say { min-height: 28px; font-weight: 700; font-size: 18px; text-align: center }
+.say.ok { color: var(--good) } .say.no { color: var(--bad) } .say.fire { color: var(--ball) }
+.tip { background: var(--court-soft); color: var(--ink); border-radius: 14px; padding: 10px 14px; font-size: 15px; width: 100% }
+.tip b { color: var(--court) }
+
+.pad { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: min(340px, 100%); margin: 0 auto; user-select: none; -webkit-user-select: none }
+.pad button { border: 2px solid var(--line); background: var(--bg); border-radius: 14px; padding: 12px 0; font-family: var(--digits); font-weight: 800; font-size: 24px; min-height: 56px }
+.pad button:active { transform: scale(.96) }
+.pad .go { background: var(--ball); color: var(--ball-ink); border-color: var(--ball); font-family: var(--display); font-size: 18px; font-weight: 400 }
+.pad .del { font-family: var(--body); font-size: 15px; font-weight: 700 }
+.progress { height: 10px; border-radius: 999px; background: var(--bg); overflow: hidden; border: 2px solid var(--line) }
+.progress i { display: block; height: 100%; background: var(--ball); transition: width .3s }
+
+/* Дүн */
+.result { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center }
+.result .final { font-family: var(--digits); font-weight: 800; font-size: 64px; color: var(--ball); line-height: 1 }
+.facts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center }
+.fact { border: 2px solid var(--line); border-radius: 10px; padding: 4px 10px; font-family: var(--digits); font-weight: 600; font-size: 14px }
+.fact.m { border-color: var(--good); background: var(--good-soft); color: var(--good) }
+.fact.l { border-color: var(--ball); background: var(--ball-soft) }
+.misslist { display: flex; flex-direction: column; gap: 8px; width: 100%; text-align: left }
+
+/* Миний хүснэгт */
+.gridwrap { overflow-x: auto }
+.grid { display: grid; grid-template-columns: repeat(11, minmax(26px, 1fr)); gap: 3px; min-width: 300px }
+.grid .h { display: grid; place-items: center; font-family: var(--digits); font-weight: 800; font-size: 12px; color: var(--court); padding: 4px 0 }
+.grid button { aspect-ratio: 1; max-width: 100%; border: 2px solid var(--line); background: var(--panel); border-radius: 7px; padding: 0; font-size: clamp(10px, 2.6vw, 14px); font-weight: 700; font-variant-numeric: tabular-nums; color: var(--muted) }
+.grid button.l { background: var(--ball-soft); border-color: var(--ball); color: var(--ink) }
+.grid button.m { background: var(--good-soft); border-color: var(--good); color: var(--good) }
+.grid button.sel { outline: 3px solid var(--court); outline-offset: 1px }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 14px; color: var(--muted) }
+.legend span { display: inline-flex; align-items: center; gap: 6px }
+.legend i { width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--line); display: inline-block }
+.legend i.l { background: var(--ball-soft); border-color: var(--ball) }
+.legend i.m { background: var(--good-soft); border-color: var(--good) }
+
+.toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 20px; border-radius: 999px; font-weight: 700; z-index: 20; max-width: calc(100% - 32px); text-align: center }
+@keyframes pop { 0% { transform: scale(.9) } 60% { transform: scale(1.06) } 100% { transform: scale(1) } }
+@keyframes drop { 0% { transform: translateY(-14px); opacity: .4 } 100% { transform: none; opacity: 1 } }
+.pop { animation: pop .3s }
+.drop { animation: drop .25s ease-out }
+@media (prefers-reduced-motion: reduce) { .pop, .drop { animation: none } .mini i, .finger, .progress i { transition: none } }
+</style>
+
+<div class="wrap">
+  <header class="board">
+    <div class="board-top">
+      <div class="team">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="22" fill="#f06a1f"/><g fill="none" stroke="#1a0d05" stroke-width="2.2"><circle cx="24" cy="24" r="22"/><path d="M2 24h44M24 2v44"/><path d="M9 8c8 7 8 25 0 32M39 8c-8 7-8 25 0 32"/></g></svg>
+        <div><span class="lbl">Тоглогч №10</span><h1>Мөнхбаатар</h1></div>
+      </div>
+      <button class="sound" id="sound" aria-pressed="true">Дуу: асаалттай</button>
+    </div>
+    <div class="cells">
+      <div class="cell"><span class="lbl">Оноо</span><b class="led" id="pts">0</b></div>
+      <div class="cell"><span class="lbl">Эзэмшсэн</span><div><b class="led" id="mast">0</b><small>/100</small></div></div>
+      <div class="cell"><span class="lbl">Цол</span><b class="rank" id="rank">Шинэ тоглогч</b></div>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Хэсэг">
+    <button class="tab" data-tab="coach" aria-pressed="true">Дасгал­жуулагч</button>
+    <button class="tab" data-tab="match" aria-pressed="false">Тоглолт</button>
+    <button class="tab" data-tab="free" aria-pressed="false">Торгууль</button>
+    <button class="tab" data-tab="chart" aria-pressed="false">Миний хүснэгт</button>
+  </nav>
+
+  <main class="panel" id="view" aria-live="polite"></main>
+</div>
+
+<script>
+/* ---------------- Хадгалалт ---------------- */
+var store = {
+  get: function (k, d) { try { var v = localStorage.getItem('ms.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set: function (k, v) { try { localStorage.setItem('ms.' + k, JSON.stringify(v)); } catch (e) { /* хувийн горим */ } }
+};
+var points = store.get('points', 0);
+var bestMatch = store.get('best', 0);
+var soundOn = store.get('sound', true);
+var stats = store.get('stats', {}); // "3x7": { s: дараалсан зөв, n: оролдлого }
+
+var $ = function (sel) { return document.querySelector(sel); };
+var $$ = function (sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+var view = $('#view');
+var shuffle = function (a) { var b = a.slice(); for (var i = b.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = b[i]; b[i] = b[j]; b[j] = t; } return b; };
+var key = function (a, b) { return Math.min(a, b) + 'x' + Math.max(a, b); };
+var stateOf = function (a, b) { var st = stats[key(a, b)]; return !st ? '' : st.s >= 3 ? 'm' : 'l'; };
+
+var HARD = [];
+[3, 4, 6, 7, 8].forEach(function (a, i, arr) { arr.slice(i).forEach(function (b) { HARD.push([a, b]); }); });
+var RANKS = [[0, 'Шинэ тоглогч'], [50, 'Сэлгээний тоглогч'], [150, 'Үндсэн тоглогч'], [300, 'Онооны машин'], [500, 'Багийн ахлагч'], [800, 'Бүх оддын тоглогч'], [1200, 'MVP'], [2000, 'Домог']];
+
+/* ---------------- Дүрэм: баримт бүрт тохирох зөвлөгөө ---------------- */
+function trick(a, b) {
+  var x = Math.min(a, b), y = Math.max(a, b), p = a * b;
+  if (x === 1) return '1-ээр үржүүлэхэд тоо өөрчлөгдөхгүй: ' + y + ' × 1 = ' + y;
+  if (y === 10) return '10-аар үржүүлэхэд ард нь 0 залгана: ' + x + ' → ' + p;
+  if (x === 7 && y === 8) return '«5-6-7-8» гэж уншаарай: 56 = 7 × 8';
+  if (x === 6 && y === 8) return 'Хөршийн дүрэм: 7 × 7 = 49, нэгийг хасвал 6 × 8 = 48';
+  if (x === y) return 'Ихэр тоо (квадрат): ' + x + ' × ' + x + ' = ' + p + '. Ихрүүдийг тусад нь цээжил.';
+  var pri = [2, 5, 9, 4, 3, 8, 6];
+  var f = pri.filter(function (n) { return n === x || n === y; })[0];
+  var o = f === x ? y : x;
+  if (f === 2) return 'Давхарла: ' + o + ' + ' + o + ' = ' + p;
+  if (f === 5) return '×10-ын хагас: ' + o + ' × 10 = ' + o * 10 + ', хагас нь ' + p;
+  if (f === 9) return '×10 − тоо: ' + o * 10 + ' − ' + o + ' = ' + p + '. Цифрүүдийн нийлбэр ' + String(p).split('').join(' + ') + ' = 9';
+  if (f === 4) return 'Хоёр удаа давхарла: ' + o + ' → ' + o * 2 + ' → ' + p;
+  if (f === 3) return '×2 дээр нэг ' + o + ' нэм: ' + o * 2 + ' + ' + o + ' = ' + p;
+  if (f === 8) return 'Гурван удаа давхарла: ' + o + ' → ' + o * 2 + ' → ' + o * 4 + ' → ' + p;
+  return '×5 дээр нэг ' + o + ' нэм: ' + o * 5 + ' + ' + o + ' = ' + p;
+}
+
+/* ---------------- Оноо, цол ---------------- */
+function rankOf(p) { var r = RANKS[0][1]; RANKS.forEach(function (x) { if (p >= x[0]) r = x[1]; }); return r; }
+function masteredCount() { var n = 0; for (var a = 1; a <= 10; a++) for (var b = 1; b <= 10; b++) if (stateOf(a, b) === 'm') n++; return n; }
+function renderBoard() {
+  $('#pts').textContent = points;
+  $('#mast').textContent = masteredCount();
+  $('#rank').textContent = rankOf(points);
+  var s = $('#sound'); s.textContent = soundOn ? 'Дуу: асаалттай' : 'Дуу: унтраалттай'; s.setAttribute('aria-pressed', String(soundOn));
+}
+function addPoints(n) {
+  var before = rankOf(points); points += n; store.set('points', points); renderBoard();
+  var after = rankOf(points); if (after !== before) toast('Шинэ цол: ' + after + '!');
+}
+function record(a, b, ok) {
+  var k = key(a, b), st = stats[k] || { s: 0, n: 0 };
+  var was = st.s >= 3;
+  st.n++; st.s = ok ? st.s + 1 : 0; stats[k] = st; store.set('stats', stats); renderBoard();
+  return !was && st.s >= 3; // шинээр эзэмшсэн
+}
+var toastTimer;
+function toast(t) {
+  var el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+  el.textContent = t; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(function () { el.hidden = true; }, 2200);
+}
+
+/* ---------------- Дуу: сагсанд орох, дохио, цагийн дуут дохио ---------------- */
+var ac = null;
+function audio() {
+  if (!soundOn) return null;
+  try { if (!ac) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ac = new C(); } if (ac.state === 'suspended') ac.resume(); return ac; } catch (e) { return null; }
+}
+function tone(type, f1, f2, dur, vol) {
+  var c = audio(); if (!c) return;
+  try {
+    var o = c.createOscillator(), g = c.createGain(), t = c.currentTime;
+    o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + dur + 0.02);
+  } catch (e) { /* дуу дэмжихгүй */ }
+}
+function swish() {
+  var c = audio(); if (!c) return;
+  try {
+    var len = Math.floor(c.sampleRate * 0.28), buf = c.createBuffer(1, len, c.sampleRate), d = buf.getChannelData(0);
+    for (var i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+    var src = c.createBufferSource(), bp = c.createBiquadFilter(), g = c.createGain(), t = c.currentTime;
+    bp.type = 'bandpass'; bp.Q.value = 1.2; bp.frequency.setValueAtTime(5200, t); bp.frequency.exponentialRampToValueAtTime(1400, t + 0.26);
+    g.gain.value = 0.5; src.buffer = buf; src.connect(bp); bp.connect(g); g.connect(c.destination); src.start(t);
+  } catch (e) { /* дуу дэмжихгүй */ }
+}
+function buzz() { tone('sawtooth', 140, 110, 0.28, 0.12); }
+function horn() { tone('square', 233, 220, 0.9, 0.09); tone('square', 294, 277, 0.9, 0.06); }
+$('#sound').addEventListener('click', function () { soundOn = !soundOn; store.set('sound', soundOn); renderBoard(); });
+
+/* ---------------- Таб солих ---------------- */
+var cleanup = null, keyHandler = null;
+function go(tab) {
+  if (cleanup) { cleanup(); cleanup = null; }
+  keyHandler = null;
+  $$('.tab').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.tab === tab)); });
+  ({ coach: Coach, match: MatchSetup, free: FreeSetup, chart: Chart })[tab]();
+}
+$$('.tab').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.tab); }); });
+document.addEventListener('keydown', function (e) {
+  if (!keyHandler) return;
+  if (/^[0-9]$/.test(e.key)) { e.preventDefault(); keyHandler.digit(e.key); }
+  else if (e.key === 'Backspace') { e.preventDefault(); keyHandler.del(); }
+  else if (e.key === 'Enter') { e.preventDefault(); keyHandler.enter(); }
+});
+
+/* ---------------- 1. Дасгалжуулагч ---------------- */
+var STEPS = [
+  { t: 'Бүтэн хүснэгт', d: '10 × 10 = 100 баримт. Их юм шиг харагдаж байгаа биз? Алхам бүрээр хасаад үзье.', keep: function () { return true; } },
+  { t: '×1 ба ×10', d: '1-ээр үржүүлэхэд тоо хэвээрээ, 10-аар үржүүлэхэд ард нь 0 залгана. Цээжлэх хэрэггүй.', keep: function (a, b) { return [1, 10].indexOf(a) < 0 && [1, 10].indexOf(b) < 0; } },
+  { t: '×2 ба ×5', d: '×2 бол тоогоо давхарлах. ×5 бол ×10-ын хагас: 8 × 5 → 80-ын хагас = 40.', keep: function (a, b) { return [1, 2, 5, 10].indexOf(a) < 0 && [1, 2, 5, 10].indexOf(b) < 0; } },
+  { t: '×9', d: 'Доорх хурууны аргаар эсвэл ×10 − тоо: 9 × 7 = 70 − 7 = 63.', keep: function (a, b) { return [1, 2, 5, 9, 10].indexOf(a) < 0 && [1, 2, 5, 9, 10].indexOf(b) < 0; } },
+  { t: 'Байр солих', d: '3 × 7 ба 7 × 3 хоёулаа 21. Нэгийг нь мэдвэл нөгөө нь бэлэн. Үлдсэн 15-ыг «Торгууль» хэсэгт давтана.', keep: function (a, b) { return [1, 2, 5, 9, 10].indexOf(a) < 0 && [1, 2, 5, 9, 10].indexOf(b) < 0 && a <= b; } }
+];
+var RULES = [
+  ['×2', 'Давхарлах', 'Тоогоо өөр дээр нь нэмнэ', '7 × 2 = 7 + 7 = 14'],
+  ['×4', 'Хоёр давхарлах', 'Давхарлаад, дахин давхарлана', '6 × 4 → 12 → 24'],
+  ['×8', 'Гурван давхарлах', 'Гурван удаа дараалан давхарлана', '7 × 8 → 14 → 28 → 56'],
+  ['×5', '×10-ын хагас', 'Үргэлж 0 эсвэл 5-аар төгсөнө', '8 × 5 → 80 → 40'],
+  ['×3', '×2 + тоо', 'Давхарлаад тоогоо дахиад нэмнэ', '7 × 3 → 14 + 7 = 21'],
+  ['×6', '×5 + тоо', '×5-ын хариун дээр тоогоо нэмнэ', '7 × 6 → 35 + 7 = 42'],
+  ['7×8', '5-6-7-8', 'Хамгийн их андуурагддаг баримт', '56 = 7 × 8'],
+  ['6×8', 'Хөршийн дүрэм', 'Хөрш хоёр тоо = дунд талын ихэр − 1', '6 × 8 = 7 × 7 − 1 = 48']
+];
+function Coach() {
+  var step = 0;
+  view.innerHTML =
+    '<section class="sec"><h2>100 баримтаас 15 болгоё</h2>' +
+    '<p class="muted">Үржүүлэх хүснэгт айхтар биш. Дүрэм бүр хэдэн баримтыг хасдагийг алхам алхмаар хар.</p>' +
+    '<div class="shrink"><div class="mini" id="mini" aria-hidden="true"></div>' +
+    '<div class="counter"><span class="lbl">Цээжлэх баримт</span><b class="led" id="cnt">100</b><b class="step" id="stepT"></b><p id="stepD"></p>' +
+    '<button class="big" id="stepBtn">Дараагийн алхам</button></div></div></section>' +
+    '<section class="sec"><h2>×9-ийн хурууны нууц</h2>' +
+    '<p class="muted">10 хуруугаа дэлгэ. 9 × 4 бол 4 дэх хуруугаа бөхийлгө. Зүүн талд 3, баруун талд 6 хуруу үлдэнэ: <b>36</b>. Хуруун дээр дараад үз.</p>' +
+    '<div class="hands" id="hands"></div><p class="nine" id="nine">Хуруу сонго</p></section>' +
+    '<section class="sec"><h2>Дасгалжуулагчийн дүрмүүд</h2><div class="rules">' +
+    RULES.map(function (r) { return '<div class="rule"><span class="tag">' + r[0] + '</span><b>' + r[1] + '</b><span class="muted">' + r[2] + '</span><code>' + r[3] + '</code></div>'; }).join('') +
+    '</div><div class="row"><button class="big" id="toMatch">Тоглолтод гарах</button><button class="ghost" id="toFree">Хэцүү 15-ыг давтах</button></div></section>';
+  var mini = $('#mini'), cells = '';
+  for (var a = 1; a <= 10; a++) for (var b = 1; b <= 10; b++) cells += '<i data-a="' + a + '" data-b="' + b + '">' + a * b + '</i>';
+  mini.innerHTML = cells;
+  function drawStep() {
+    var s = STEPS[step], n = 0;
+    $$('#mini i').forEach(function (c) { var k = s.keep(+c.dataset.a, +c.dataset.b); c.classList.toggle('gone', !k); if (k) n++; });
+    $('#cnt').textContent = n; $('#stepT').textContent = (step === 0 ? '' : 'Хассан: ') + s.t; $('#stepD').textContent = s.d;
+    $('#stepBtn').textContent = step === STEPS.length - 1 ? 'Дахин эхлэх' : 'Дараагийн алхам';
+  }
+  $('#stepBtn').addEventListener('click', function () { step = (step + 1) % STEPS.length; drawStep(); if (step === STEPS.length - 1) swish(); });
+  drawStep();
+
+  var hands = '';
+  [0, 1].forEach(function (h) {
+    hands += '<div class="hand' + (h ? ' r' : '') + '">';
+    for (var i = 1; i <= 5; i++) { var n = h * 5 + i; hands += '<button class="finger" data-n="' + n + '" aria-label="' + n + ' дэх хуруу">' + n + '</button>'; }
+    hands += '</div>';
+  });
+  $('#hands').innerHTML = hands;
+  $$('.finger').forEach(function (f) {
+    f.addEventListener('click', function () {
+      var n = +f.dataset.n;
+      $$('.finger').forEach(function (x) { x.classList.toggle('down', x === f); });
+      $('#nine').innerHTML = '9 × ' + n + ': зүүн талд ' + (n - 1) + ', баруун талд ' + (10 - n) + ' хуруу → <b>' + 9 * n + '</b>';
+    });
+  });
+  $('#toMatch').addEventListener('click', function () { go('match'); });
+  $('#toFree').addEventListener('click', function () { go('free'); });
+}
+
+/* ---------------- Тоочлуур ---------------- */
+function padHTML() {
+  var keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  return '<div class="pad">' + keys.map(function (k) { return '<button data-k="' + k + '">' + k + '</button>'; }).join('') +
+    '<button class="del" data-k="del" aria-label="Устгах">Устгах</button><button data-k="0">0</button><button class="go" data-k="go">Шид</button></div>';
+}
+function bindPad(h) {
+  keyHandler = h;
+  $$('.pad button').forEach(function (b) {
+    b.addEventListener('click', function () { var k = b.dataset.k; if (k === 'del') h.del(); else if (k === 'go') h.enter(); else h.digit(k); });
+  });
+}
+function qHTML(a, b) { return a + ' <span class="x">×</span> ' + b; }
+
+/* ---------------- 2. Тоглолт (60 секунд) ---------------- */
+function MatchSetup() {
+  view.innerHTML =
+    '<h2>Тоглолт · 60 секунд</h2>' +
+    '<p>60 секундэд аль болох олон шидэлт оно. Зөв хариулт бүр сагсанд орсон бөмбөг.</p>' +
+    '<div class="rules">' +
+    '<div class="rule"><span class="tag">+2</span><b>Сагсанд</b><span class="muted">Зөв хариулт</span></div>' +
+    '<div class="rule"><span class="tag">+3</span><b>Гурвалсан</b><span class="muted">3 секундэд, гурвалсны бүс дуусахаас өмнө хариулбал</span></div>' +
+    '<div class="rule"><span class="tag">×5</span><b>Халуун гар</b><span class="muted">5 дараалан онобол</span></div>' +
+    '</div>' +
+    '<p class="muted">Шилдэг оноо: <b>' + bestMatch + '</b>. Сайн мэдэхгүй баримтууд илүү олон удаа гарна.</p>' +
+    '<div class="row"><button class="big" id="start">Тоглолт эхлэх</button></div>';
+  $('#start').addEventListener('click', function () { audio(); MatchPlay(); });
+}
+function pickFact(prev) {
+  var pool = [];
+  for (var a = 1; a <= 10; a++) for (var b = 1; b <= 10; b++) {
+    if (prev && prev[0] === a && prev[1] === b) continue;
+    var st = stateOf(a, b), w = st === 'm' ? 1 : st === 'l' ? 5 : 3;
+    if (a === 1 || b === 1 || a === 10 || b === 10) w = w / 3;
+    pool.push([a, b, w]);
+  }
+  var total = pool.reduce(function (s, x) { return s + x[2]; }, 0), r = Math.random() * total;
+  for (var i = 0; i < pool.length; i++) { r -= pool[i][2]; if (r <= 0) return pool[i]; }
+  return pool[pool.length - 1];
+}
+function MatchPlay() {
+  var LEN = 60000, t0 = Date.now(), score = 0, made = 0, tries = 0, streak = 0, bestStreak = 0, missed = [];
+  var q = null, qStart = 0, input = '', locked = true, over = false, nextTimer;
+  view.innerHTML =
+    '<div class="hud"><div><span class="lbl">Цаг</span><b class="led" id="clock">60</b></div>' +
+    '<div><span class="lbl">Оноо</span><b class="led" id="score">0</b></div>' +
+    '<div><span class="lbl">Оносон</span><b class="led" id="made">0</b></div></div>' +
+    '<div class="shot"><div class="q" id="q"></div><div class="ans" id="ans"></div>' +
+    '<div class="zone"><div class="bar"><i id="zone"></i></div><span>Гурвалсны бүс</span></div>' +
+    '<div class="say" id="say"></div></div>' + padHTML();
+  function drawAns(cls) { var el = $('#ans'); el.className = 'ans' + (cls ? ' ' + cls : ''); el.innerHTML = input || '<span class="ph">Хариу</span>'; }
+  function next() {
+    if (over) return;
+    q = pickFact(q); input = ''; locked = false; qStart = Date.now();
+    var el = $('#q'); el.innerHTML = qHTML(q[0], q[1]); el.classList.remove('drop'); void el.offsetWidth; el.classList.add('drop');
+    drawAns(''); $('#say').textContent = ''; $('#say').className = 'say';
+  }
+  function submit() {
+    if (locked || !input) return;
+    locked = true; tries++;
+    var p = q[0] * q[1], ok = Number(input) === p, say = $('#say');
+    var newM = record(q[0], q[1], ok);
+    if (ok) {
+      var three = Date.now() - qStart <= 3000, gain = three ? 3 : 2;
+      score += gain; made++; streak++; bestStreak = Math.max(bestStreak, streak);
+      swish(); drawAns('ok');
+      if (streak > 0 && streak % 5 === 0) { say.className = 'say fire'; say.textContent = 'Халуун гар! ' + streak + ' дараалан +' + gain; }
+      else { say.className = 'say ok'; say.textContent = (three ? 'Гурвалсан! +3' : 'Сагсанд! +2') + (newM ? ' · шинэ баримт эзэмшлээ' : ''); }
+      $('#score').textContent = score; $('#made').textContent = made;
+      nextTimer = setTimeout(next, 380);
+    } else {
+      streak = 0; missed.push([q[0], q[1]]); buzz(); drawAns('no');
+      say.className = 'say no'; say.textContent = 'Алдлаа: ' + q[0] + ' × ' + q[1] + ' = ' + p;
+      nextTimer = setTimeout(next, 1400);
+    }
+  }
+  bindPad({
+    digit: function (d) { if (locked || input.length >= 3) return; input += d; drawAns(''); if (Number(input) === q[0] * q[1]) submit(); },
+    del: function () { if (locked) return; input = input.slice(0, -1); drawAns(''); },
+    enter: submit
+  });
+  var iv = setInterval(function () {
+    var left = Math.max(0, LEN - (Date.now() - t0)), clock = $('#clock');
+    if (!clock) return;
+    clock.textContent = Math.ceil(left / 1000); clock.classList.toggle('low', left <= 10000);
+    var z = $('#zone'); if (z) z.style.width = (locked ? 0 : Math.max(0, 1 - (Date.now() - qStart) / 3000) * 100) + '%';
+    if (left <= 0) finish();
+  }, 100);
+  cleanup = function () { over = true; clearInterval(iv); clearTimeout(nextTimer); };
+  function finish() {
+    over = true; clearInterval(iv); clearTimeout(nextTimer); keyHandler = null; horn();
+    addPoints(score);
+    var record_ = score > bestMatch; if (record_) { bestMatch = score; store.set('best', bestMatch); }
+    var acc = tries ? Math.round(made / tries * 100) : 0;
+    var uniq = []; missed.forEach(function (m) { if (!uniq.some(function (u) { return key(u[0], u[1]) === key(m[0], m[1]); })) uniq.push(m); });
+    view.innerHTML = '<div class="result pop">' +
+      '<span class="lbl muted">Эцсийн оноо</span><div class="final">' + score + '</div>' +
+      '<h2>' + (record_ ? 'Шинэ дээд амжилт!' : score >= bestMatch * 0.8 ? 'Сайн тоглолт!' : 'Дараагийн тоглолтод илүү!') + '</h2>' +
+      '<p>' + made + ' / ' + tries + ' шидэлт оносон · ' + acc + '% · хамгийн урт цуваа ' + bestStreak + '</p>' +
+      '<p class="muted">Шилдэг оноо: ' + bestMatch + '</p>' +
+      (uniq.length ? '<div class="misslist"><h3>Дасгалжуулагчийн тэмдэглэл</h3>' + uniq.slice(0, 6).map(function (m) {
+        return '<div class="tip"><b>' + m[0] + ' × ' + m[1] + ' = ' + m[0] * m[1] + '</b> · ' + trick(m[0], m[1]) + '</div>'; }).join('') + '</div>' : '') +
+      '<div class="row" style="justify-content:center"><button class="big" id="again">Дахин тоглох</button><button class="ghost" id="chart">Хүснэгтээ харах</button></div></div>';
+    $('#again').addEventListener('click', MatchPlay);
+    $('#chart').addEventListener('click', function () { go('chart'); });
+  }
+  next();
+}
+
+/* ---------------- 3. Торгуулийн шидэлт (хэцүү 15) ---------------- */
+function FreeSetup() {
+  var m = HARD.filter(function (f) { return stateOf(f[0], f[1]) === 'm'; }).length;
+  view.innerHTML =
+    '<h2>Торгуулийн шидэлт · хэцүү 15</h2>' +
+    '<p>×1, ×2, ×5, ×9, ×10-ын дүрэм болон байр солихыг ашигласны дараа зөвхөн эдгээр 15 баримт үлддэг. Цаг хэмжихгүй, тайван шид.</p>' +
+    '<div class="facts">' + HARD.map(function (f) { var s = stateOf(f[0], f[1]); return '<span class="fact ' + s + '">' + f[0] + '×' + f[1] + '</span>'; }).join('') + '</div>' +
+    '<p class="muted">Эзэмшсэн: <b>' + m + ' / 15</b>. Алдсан баримт 3 шидэлтийн дараа дахин гарна. Эхний оролдлогоор оновол +2 оноо.</p>' +
+    '<div class="row"><button class="big" id="start">Шидэлт эхлэх</button></div>';
+  $('#start').addEventListener('click', function () { audio(); FreePlay(); });
+}
+function FreePlay() {
+  var queue = shuffle(HARD).map(function (f) { return Math.random() < 0.5 ? [f[1], f[0]] : f; });
+  var done = 0, firstOk = 0, missedOnce = {}, cur, input = '', locked = false;
+  function draw() {
+    cur = queue[0]; input = ''; locked = false;
+    view.innerHTML =
+      '<div class="row" style="justify-content:space-between"><b>Торгууль ' + Math.min(done + 1, 15) + ' / 15</b><span class="muted">Эхний оролдлогоор: ' + firstOk + '</span></div>' +
+      '<div class="progress"><i style="width:' + done / 15 * 100 + '%"></i></div>' +
+      '<div class="shot"><div class="q drop">' + qHTML(cur[0], cur[1]) + '</div><div class="ans" id="ans"></div>' +
+      '<div class="say" id="say"></div><div class="tip" id="tip" hidden></div>' +
+      '<div class="row" id="ctrl"><button class="ghost" id="hint">Дасгалжуулагчийн зөвлөгөө</button></div></div>' + padHTML();
+    drawAns('');
+    $('#hint').addEventListener('click', showTip);
+    bindPad({
+      digit: function (d) { if (locked || input.length >= 3) return; input += d; drawAns(''); },
+      del: function () { if (locked) return; input = input.slice(0, -1); drawAns(''); },
+      enter: function () { if (locked) proceed(); else submit(); }
+    });
+  }
+  function drawAns(cls) { var el = $('#ans'); el.className = 'ans' + (cls ? ' ' + cls : ''); el.innerHTML = input || '<span class="ph">Хариу</span>'; }
+  function showTip() { var t = $('#tip'); t.hidden = false; t.innerHTML = '<b>Зөвлөгөө:</b> ' + trick(cur[0], cur[1]); }
+  var nextFn = null;
+  function proceed() { if (nextFn) { var f = nextFn; nextFn = null; f(); } }
+  function submit() {
+    if (locked || !input) return;
+    locked = true;
+    var p = cur[0] * cur[1], ok = Number(input) === p, k = key(cur[0], cur[1]), say = $('#say');
+    var newM = record(cur[0], cur[1], ok);
+    if (ok) {
+      queue.shift(); done++;
+      if (!missedOnce[k]) { firstOk++; addPoints(2); }
+      swish(); drawAns('ok'); say.className = 'say ok'; say.textContent = 'Оносон!' + (newM ? ' Энэ баримтыг эзэмшлээ' : '');
+      nextFn = function () { if (queue.length) draw(); else finish(); };
+      setTimeout(proceed, 700);
+    } else {
+      missedOnce[k] = true; buzz(); drawAns('no');
+      say.className = 'say no'; say.textContent = 'Хариу нь ' + p + '. Дүрмийг нь санаарай:';
+      showTip();
+      queue.shift(); queue.splice(Math.min(3, queue.length), 0, cur);
+      $('#ctrl').innerHTML = '<button class="big" id="nextBtn">Дараагийн шидэлт</button>';
+      nextFn = draw;
+      $('#nextBtn').addEventListener('click', proceed);
+    }
+  }
+  function finish() {
+    keyHandler = null; horn();
+    view.innerHTML = '<div class="result pop"><span class="lbl muted">Эхний оролдлогоор оносон</span>' +
+      '<div class="final">' + firstOk + '<span style="font-size:28px">/15</span></div>' +
+      '<h2>' + (firstOk === 15 ? 'Торгуулийн мастер!' : firstOk >= 11 ? 'Бараг төгс!' : 'Дасгал хийх тусам сайжирна') + '</h2>' +
+      '<p class="muted">Нэг баримт 3 удаа дараалан зөв хариулбал «эзэмшсэн» болж хүснэгтэд ногоон болно.</p>' +
+      '<div class="row" style="justify-content:center"><button class="big" id="again">Дахин шидэх</button><button class="ghost" id="chart">Хүснэгтээ харах</button></div></div>';
+    $('#again').addEventListener('click', FreePlay);
+    $('#chart').addEventListener('click', function () { go('chart'); });
+  }
+  draw();
+}
+
+/* ---------------- 4. Миний хүснэгт ---------------- */
+function Chart() {
+  var sel = null, confirmReset = false;
+  function draw() {
+    var html = '<div class="h">×</div>';
+    for (var c = 1; c <= 10; c++) html += '<div class="h">' + c + '</div>';
+    for (var a = 1; a <= 10; a++) {
+      html += '<div class="h">' + a + '</div>';
+      for (var b = 1; b <= 10; b++) {
+        var s = stateOf(a, b), isSel = sel && sel[0] === a && sel[1] === b;
+        html += '<button class="' + s + (isSel ? ' sel' : '') + '" data-a="' + a + '" data-b="' + b + '" aria-label="' + a + ' × ' + b + '">' + a * b + '</button>';
+      }
+    }
+    var n = masteredCount();
+    view.innerHTML =
+      '<div class="row" style="justify-content:space-between"><h2>Миний хүснэгт</h2><b>' + n + ' / 100 эзэмшсэн</b></div>' +
+      '<div class="progress"><i style="width:' + n + '%"></i></div>' +
+      '<div class="legend"><span><i></i>Хараахан тоглоогүй</span><span><i class="l"></i>Сурч байгаа</span><span><i class="m"></i>Эзэмшсэн (3 дараалан зөв)</span></div>' +
+      '<div class="gridwrap"><div class="grid">' + html + '</div></div>' +
+      (sel ? '<div class="tip pop"><b>' + sel[0] + ' × ' + sel[1] + ' = ' + sel[0] * sel[1] + '</b> · ' + trick(sel[0], sel[1]) + '</div>' : '<p class="muted">Нүдэн дээр дарвал тухайн баримтын дүрэм гарна.</p>') +
+      '<div class="row"><button class="ghost danger" id="reset">' + (confirmReset ? 'Тийм, бүгдийг арилга' : 'Ахицыг шинээр эхлүүлэх') + '</button>' +
+      (confirmReset ? '<button class="ghost" id="cancel">Болих</button>' : '') + '</div>';
+    $$('.grid button').forEach(function (b) { b.addEventListener('click', function () { sel = [+b.dataset.a, +b.dataset.b]; confirmReset = false; draw(); }); });
+    $('#reset').addEventListener('click', function () {
+      if (!confirmReset) { confirmReset = true; draw(); return; }
+      stats = {}; points = 0; bestMatch = 0; store.set('stats', stats); store.set('points', 0); store.set('best', 0);
+      confirmReset = false; renderBoard(); draw(); toast('Ахиц шинээр эхэллээ');
+    });
+    if (confirmReset) $('#cancel').addEventListener('click', function () { confirmReset = false; draw(); });
+  }
+  draw();
+}
+
+renderBoard();
+Coach();
+</script>
+</body>
+</html>
